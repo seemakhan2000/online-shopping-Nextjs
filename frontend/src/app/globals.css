@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* SweetAlert2 - reusable admin styling */
+.swal-admin-popup {
+  width: min(440px, calc(100% - 32px)) !important;
+  padding: 28px 24px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 18px !important;
+  font-family: inherit;
+}
+
+.swal-admin-title {
+  color: #0f172a !important;
+  font-size: 1.45rem !important;
+  font-weight: 700 !important;
+}
+
+.swal-admin-message {
+  color: #64748b !important;
+  font-size: 0.925rem !important;
+  line-height: 1.65 !important;
+}
+
+.swal-admin-actions {
+  gap: 10px !important;
+}
+
+.swal-admin-confirm,
+.swal-admin-cancel {
+  min-height: 42px;
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.swal-admin-confirm {
+  background: #123b6d;
+  color: #fff;
+}
+
+.swal-admin-confirm:hover {
+  background: #0d2f57;
+}
+
+.swal-admin-cancel {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.swal-admin-cancel:hover {
+  background: #e2e8f0;
+}
