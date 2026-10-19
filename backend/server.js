@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 5000;
 // Database connection
 connectDB();
 
-// CORS configuration — frontend: localhost:3000
+
 app.use(
   cors({
     origin: 'http://localhost:3000',
