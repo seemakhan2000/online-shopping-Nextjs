@@ -15,17 +15,39 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5173',
+
+  // Production frontend domains
+  'https://online-shopping-nextjs.vercel.app',
+  'https://online-shopping-nextjs-t4mj-6j5fvkd5g-seemakhan2000s-projects.vercel.app',
+
+  // Optional custom frontend domain from Vercel environment variables
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow server-to-server requests and configured frontend origins
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests without an Origin header (e.g. server-to-server)
+      if (!origin) {
         return callback(null, true);
       }
 
+      // Allow explicitly configured origins
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow this project's Vercel preview deployments only
+      const isVercelPreview =
+        /^https:\/\/online-shopping-nextjs-[a-z0-9-]+-seemakhan2000s-projects\.vercel\.app$/.test(
+          origin
+        );
+
+      if (isVercelPreview) {
+        return callback(null, true);
+      }
+
+      console.warn('CORS blocked origin:', origin);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
@@ -74,7 +96,6 @@ app.use((req, res) => {
     message: `Route not found: ${req.method} ${req.originalUrl}`,
   });
 });
-
 
 if (require.main === module) {
   connectDB()
