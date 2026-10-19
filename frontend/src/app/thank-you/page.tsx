@@ -217,7 +217,7 @@ export default function ThankYouPage() {
       <footer className="relative z-10 border-t border-slate-200 bg-white px-5 py-5">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 text-center text-xs text-slate-500 sm:flex-row sm:text-left">
           <p>
-            © {new Date().getFullYear()} MY SHOPE. All rights reserved.
+         © 2026 MY SHOPE. All rights reserved.
           </p>
           <p className="flex items-center gap-1.5">
             <ShieldCheck size={15} />
