@@ -2,13 +2,14 @@
 "use client";
 
 import {
-  ChangeEvent,
-  FormEvent,
+  type ChangeEvent,
+  type FormEvent,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -21,10 +22,9 @@ const BASE_URL = (
 ).replace(/\/+$/, "");
 
 const API_URL = `${BASE_URL}/api/products`;
+
 const FALLBACK_IMAGE =
   "https://dummyimage.com/200x200/e2e8f0/64748b&text=No+Image";
-
-const NAVY = "#123B6D";
 
 type Product = {
   _id: string;
@@ -34,10 +34,18 @@ type Product = {
   images?: string[];
 };
 
+type ApiResponse = {
+  message?: string;
+  error?: string;
+  products?: Product[];
+};
 
 function getImageUrl(path?: string) {
   if (!path) return FALLBACK_IMAGE;
-  if (/^https?:\/\//i.test(path)) return path;
+
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
 
   return `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`;
 }
@@ -45,19 +53,17 @@ function getImageUrl(path?: string) {
 async function readResponse<T>(response: Response): Promise<T> {
   const responseText = await response.text();
 
-  let data: {
-    message?: string;
-    error?: string;
-    products?: Product[];
-  } = {};
+  let data: ApiResponse | Product | Product[] = {};
 
   try {
     data = responseText ? JSON.parse(responseText) : {};
   } catch {
-    // Handle non-JSON responses 
+    // The server may return a non-JSON response.
   }
 
   if (!response.ok) {
+    const errorData = data as ApiResponse;
+
     console.error("API Error Details:", {
       status: response.status,
       statusText: response.statusText,
@@ -65,8 +71,8 @@ async function readResponse<T>(response: Response): Promise<T> {
     });
 
     throw new Error(
-      data.message ||
-        data.error ||
+      errorData.message ||
+        errorData.error ||
         `Request failed: ${response.status} ${response.statusText}`
     );
   }
@@ -79,7 +85,7 @@ function FieldLabel({
   children,
 }: {
   htmlFor: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label
@@ -96,10 +102,14 @@ const inputClass =
 
 export default function AddProductPage() {
   const router = useRouter();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
+  const imagePreviewRef = useRef("");
+  const editImagePreviewRef = useRef("");
 
   const [products, setProducts] = useState<Product[]>([]);
+
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
@@ -114,7 +124,6 @@ export default function AddProductPage() {
   const [editImagePreview, setEditImagePreview] = useState("");
   const [isEditOpen, setIsEditOpen] = useState(false);
 
-  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -122,39 +131,39 @@ export default function AddProductPage() {
   const [authenticated, setAuthenticated] = useState(false);
 
   const loadProducts = useCallback(async () => {
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const response = await fetch(API_URL);
-    const data = await readResponse<unknown>(response);
+    try {
+      const response = await fetch(API_URL);
+      const data = await readResponse<unknown>(response);
 
-    const list = Array.isArray(data)
-      ? data
-      : typeof data === "object" &&
-          data !== null &&
-          "products" in data &&
-          Array.isArray(data.products)
-        ? data.products
-        : null;
+      const list = Array.isArray(data)
+        ? data
+        : typeof data === "object" &&
+            data !== null &&
+            "products" in data &&
+            Array.isArray(data.products)
+          ? data.products
+          : null;
 
-    if (!list) {
-      throw new Error("Invalid products response from server");
+      if (!list) {
+        throw new Error("Invalid products response from server");
+      }
+
+      setProducts(list as Product[]);
+    } catch (error) {
+      console.error(error);
+
+      showToast(
+        error instanceof Error
+          ? `Failed to load products: ${error.message}`
+          : "Failed to load products",
+        "error"
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setProducts(list as Product[]);
-  } catch (error) {
-    console.error(error);
-
-    showToast(
-      error instanceof Error
-        ? `Failed to load products: ${error.message}`
-        : "Failed to load products",
-      "error"
-    );
-  } finally {
-    setLoading(false);
-  }
-}, []);
+  }, []);
 
   useEffect(() => {
     if (!localStorage.getItem("adminLoginTime")) {
@@ -166,20 +175,52 @@ export default function AddProductPage() {
     void loadProducts();
   }, [router, loadProducts]);
 
+  // Keep object URLs in sync and release them when replaced or unmounted.
+  useEffect(() => {
+    imagePreviewRef.current = imagePreview;
+  }, [imagePreview]);
+
+  useEffect(() => {
+    editImagePreviewRef.current = editImagePreview;
+  }, [editImagePreview]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreviewRef.current);
+      }
+
+      if (editImagePreviewRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(editImagePreviewRef.current);
+      }
+    };
+  }, []);
+
+  // Allow Escape to close the modal and prevent background scrolling.
   useEffect(() => {
     if (!isEditOpen) return;
 
+    const previousOverflow = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsEditOpen(false);
+      if (event.key === "Escape" && !savingEdit) {
+        setIsEditOpen(false);
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
 
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isEditOpen]);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isEditOpen, savingEdit]);
 
   function handleNewImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
@@ -188,16 +229,20 @@ export default function AddProductPage() {
       return;
     }
 
-    if (imagePreview.startsWith("blob:")) {
-      URL.revokeObjectURL(imagePreview);
+    if (imagePreviewRef.current.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreviewRef.current);
     }
 
+    const preview = URL.createObjectURL(file);
+
+    imagePreviewRef.current = preview;
     setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    setImagePreview(preview);
   }
 
   function handleEditImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
@@ -206,12 +251,35 @@ export default function AddProductPage() {
       return;
     }
 
-    if (editImagePreview.startsWith("blob:")) {
-      URL.revokeObjectURL(editImagePreview);
+    if (editImagePreviewRef.current.startsWith("blob:")) {
+      URL.revokeObjectURL(editImagePreviewRef.current);
     }
 
+    const preview = URL.createObjectURL(file);
+
+    editImagePreviewRef.current = preview;
     setEditImageFile(file);
-    setEditImagePreview(URL.createObjectURL(file));
+    setEditImagePreview(preview);
+  }
+
+  function clearNewImage() {
+    if (imagePreviewRef.current.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreviewRef.current);
+    }
+
+    imagePreviewRef.current = "";
+    setImageFile(null);
+    setImagePreview("");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function closeEditModal() {
+    if (savingEdit) return;
+
+    setIsEditOpen(false);
   }
 
   async function handleAddProduct(event: FormEvent<HTMLFormElement>) {
@@ -223,6 +291,7 @@ export default function AddProductPage() {
     }
 
     const formData = new FormData();
+
     formData.append("name", name);
     formData.append("price", price);
     formData.append("category", category);
@@ -238,25 +307,17 @@ export default function AddProductPage() {
 
       await readResponse(response);
 
-      showToast("Product added successfully");
-
-      if (imagePreview.startsWith("blob:")) {
-        URL.revokeObjectURL(imagePreview);
-      }
+      showToast("Product added successfully", "success");
 
       setName("");
       setPrice("");
       setCategory("");
-      setImageFile(null);
-      setImagePreview("");
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      clearNewImage();
 
       await loadProducts();
     } catch (error) {
       console.error(error);
+
       showToast(
         error instanceof Error
           ? `Error adding product: ${error.message}`
@@ -271,16 +332,35 @@ export default function AddProductPage() {
   async function editProduct(id: string) {
     try {
       const response = await fetch(`${API_URL}/${id}`);
-      const data = await readResponse<Product>(response);
+      const result = await readResponse<Product | { product: Product }>(
+        response
+      );
+
+      const data =
+        "product" in result
+          ? result.product
+          : result;
+
+      if (!data?._id) {
+        throw new Error("Product details were not returned by the server");
+      }
+
+      if (editImagePreviewRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(editImagePreviewRef.current);
+      }
 
       setEditId(data._id);
       setEditName(data.name);
       setEditPrice(String(data.price));
       setEditCategory(data.category);
       setEditImageFile(null);
-      setEditImagePreview(
-        data.images?.[0] ? getImageUrl(data.images[0]) : ""
-      );
+
+      const preview = data.images?.[0]
+        ? getImageUrl(data.images[0])
+        : "";
+
+      editImagePreviewRef.current = preview;
+      setEditImagePreview(preview);
 
       if (editFileInputRef.current) {
         editFileInputRef.current.value = "";
@@ -289,6 +369,7 @@ export default function AddProductPage() {
       setIsEditOpen(true);
     } catch (error) {
       console.error(error);
+
       showToast(
         error instanceof Error
           ? `Error fetching product: ${error.message}`
@@ -301,7 +382,13 @@ export default function AddProductPage() {
   async function handleEditProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!editId) {
+      showToast("No product selected for editing", "error");
+      return;
+    }
+
     const formData = new FormData();
+
     formData.append("name", editName);
     formData.append("price", editPrice);
     formData.append("category", editCategory);
@@ -320,12 +407,13 @@ export default function AddProductPage() {
 
       await readResponse(response);
 
-      showToast("Product edited successfully");
+      showToast("Product edited successfully", "success");
       setIsEditOpen(false);
 
       await loadProducts();
     } catch (error) {
       console.error(error);
+
       showToast(
         error instanceof Error
           ? `Error updating product: ${error.message}`
@@ -338,41 +426,41 @@ export default function AddProductPage() {
   }
 
   async function deleteProduct(id: string) {
-  const product = products.find((item) => item._id === id);
+    const product = products.find((item) => item._id === id);
 
-  const confirmed = await confirmDelete(
-    product ? `"${product.name}"` : "this product"
-  );
-
-  if (!confirmed) return;
-
-  setDeletingId(id);
-
-  try {
-    const response = await fetch(`${API_URL}/${id}`, {
-      method: "DELETE",
-    });
-
-    await readResponse(response);
-
-    setProducts((current) =>
-      current.filter((item) => item._id !== id)
+    const confirmed = await confirmDelete(
+      product ? `"${product.name}"` : "this product"
     );
 
-    showToast("Product deleted successfully", "success");
-  } catch (error) {
-    console.error(error);
+    if (!confirmed) return;
 
-    showToast(
-      error instanceof Error
-        ? `Error deleting product: ${error.message}`
-        : "Error deleting product",
-      "error"
-    );
-  } finally {
-    setDeletingId("");
+    setDeletingId(id);
+
+    try {
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: "DELETE",
+      });
+
+      await readResponse(response);
+
+      setProducts((current) =>
+        current.filter((item) => item._id !== id)
+      );
+
+      showToast("Product deleted successfully", "success");
+    } catch (error) {
+      console.error(error);
+
+      showToast(
+        error instanceof Error
+          ? `Error deleting product: ${error.message}`
+          : "Error deleting product",
+        "error"
+      );
+    } finally {
+      setDeletingId("");
+    }
   }
-}
 
   if (!authenticated) {
     return (
@@ -392,9 +480,7 @@ export default function AddProductPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 pt-24 sm:pt-28">
-    
       <main className="mx-auto w-full max-w-[1500px] px-4 pb-12 sm:px-6 lg:px-8">
-        {/* Page heading */}
         <header className="mb-8 flex flex-col gap-3 border-b border-slate-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#123B6D]">
@@ -423,6 +509,7 @@ export default function AddProductPage() {
             >
               <path d="M3 7h18M5 7l1 13h12l1-13M9 7V4h6v3" />
             </svg>
+
             <div>
               <p className="text-xs text-slate-500">Total products</p>
               <p className="text-lg font-bold leading-5 text-slate-900">
@@ -432,7 +519,6 @@ export default function AddProductPage() {
           </div>
         </header>
 
-        {/* Add Product Form */}
         <section
           aria-labelledby="add-product-heading"
           className="mb-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
@@ -559,16 +645,7 @@ export default function AddProductPage() {
 
                       <button
                         type="button"
-                        onClick={() => {
-                          if (imagePreview.startsWith("blob:")) {
-                            URL.revokeObjectURL(imagePreview);
-                          }
-                          setImageFile(null);
-                          setImagePreview("");
-                          if (fileInputRef.current) {
-                            fileInputRef.current.value = "";
-                          }
-                        }}
+                        onClick={clearNewImage}
                         className="ml-auto rounded-lg px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
                       >
                         Remove
@@ -614,7 +691,6 @@ export default function AddProductPage() {
           </form>
         </section>
 
-        {/* Product List */}
         <section
           id="productTableWrapper"
           aria-labelledby="product-list-heading"
@@ -792,6 +868,7 @@ export default function AddProductPage() {
                 ? "Retrieving inventory..."
                 : `Showing ${products.length} product${products.length === 1 ? "" : "s"}`}
             </span>
+
             <button
               type="button"
               onClick={() => void loadProducts()}
@@ -817,9 +894,12 @@ export default function AddProductPage() {
       {/* Edit Product Modal */}
       {isEditOpen && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-[3px]"
+          className="fixed inset-0 z-[90] overflow-y-auto overscroll-contain bg-slate-950/60 p-3 backdrop-blur-[3px] sm:p-5"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
+            if (
+              event.target === event.currentTarget &&
+              !savingEdit
+            ) {
               setIsEditOpen(false);
             }
           }}
@@ -828,39 +908,53 @@ export default function AddProductPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="editModalTitle"
-            className="my-auto w-full max-w-[520px] overflow-hidden rounded-2xl border border-white/20 bg-white shadow-2xl"
+            className="mx-auto my-2 flex w-full max-w-[520px] flex-col overflow-hidden rounded-2xl border border-white/20 bg-white shadow-2xl sm:my-4"
+            style={{
+              maxHeight: "calc(100dvh - 1.5rem)",
+            }}
           >
-            <form onSubmit={handleEditProduct}>
-              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#123B6D]">
-                    Inventory Management
-                  </p>
-                  <h2
-                    id="editModalTitle"
-                    className="mt-1 text-xl font-bold text-slate-900"
-                  >
-                    Edit Product
-                  </h2>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsEditOpen(false)}
-                  aria-label="Close modal"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg text-2xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            {/* Modal header stays visible */}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 sm:px-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#123B6D]">
+                  Inventory Management
+                </p>
+                <h2
+                  id="editModalTitle"
+                  className="mt-1 text-xl font-bold text-slate-900"
                 >
-                  ×
-                </button>
+                  Edit Product
+                </h2>
               </div>
 
-              <div className="space-y-5 px-6 py-6">
-                <input type="hidden" value={editId} readOnly />
+              <button
+                type="button"
+                onClick={closeEditModal}
+                disabled={savingEdit}
+                aria-label="Close modal"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-2xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
 
+            {/* Scrollable form area */}
+            <form
+              onSubmit={handleEditProduct}
+              className="min-h-0 overflow-y-auto overscroll-contain"
+              style={{
+                WebkitOverflowScrolling: "touch",
+                touchAction: "pan-y",
+              }}
+            >
+              <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
                 <div>
-                  <FieldLabel htmlFor="editName">Product Name</FieldLabel>
+                  <FieldLabel htmlFor="editName">
+                    Product Name
+                  </FieldLabel>
                   <input
                     id="editName"
+                    name="editName"
                     value={editName}
                     onChange={(event) => setEditName(event.target.value)}
                     required
@@ -876,6 +970,7 @@ export default function AddProductPage() {
                     </span>
                     <input
                       id="editPrice"
+                      name="editPrice"
                       type="number"
                       min="0"
                       step="any"
@@ -888,11 +983,16 @@ export default function AddProductPage() {
                 </div>
 
                 <div>
-                  <FieldLabel htmlFor="editCategory">Category</FieldLabel>
+                  <FieldLabel htmlFor="editCategory">
+                    Category
+                  </FieldLabel>
                   <input
                     id="editCategory"
+                    name="editCategory"
                     value={editCategory}
-                    onChange={(event) => setEditCategory(event.target.value)}
+                    onChange={(event) =>
+                      setEditCategory(event.target.value)
+                    }
                     required
                     className={inputClass}
                   />
@@ -907,6 +1007,7 @@ export default function AddProductPage() {
                     <input
                       ref={editFileInputRef}
                       id="editImageUpload"
+                      name="editImageUpload"
                       type="file"
                       accept="image/*"
                       onChange={handleEditImage}
@@ -914,31 +1015,41 @@ export default function AddProductPage() {
                     />
 
                     {editImagePreview && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        id="editPreview"
-                        src={editImagePreview}
-                        alt="Product image preview"
-                        onError={(event) => {
-                          event.currentTarget.onerror = null;
-                          event.currentTarget.src = FALLBACK_IMAGE;
-                        }}
-                        className="mt-4 h-24 w-24 rounded-lg border border-slate-200 bg-white object-cover"
-                      />
+                      <div className="mt-4 flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={editImagePreview}
+                          alt="Product image preview"
+                          onError={(event) => {
+                            event.currentTarget.onerror = null;
+                            event.currentTarget.src = FALLBACK_IMAGE;
+                          }}
+                          className="h-24 w-24 rounded-lg border border-slate-200 bg-white object-cover"
+                        />
+
+                        <p className="text-xs leading-5 text-slate-500">
+                          {editImageFile
+                            ? "New image selected."
+                            : "Current product image."}
+                        </p>
+                      </div>
                     )}
                   </div>
+
                   <p className="mt-2 text-xs text-slate-500">
-                    Choose a new image only if you want to replace the current
-                    one.
+                    Choose a new image only if you want to replace the
+                    current one.
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50/70 px-6 py-4 sm:flex-row sm:justify-end">
+              {/* Footer stays accessible at the end of the scroll */}
+              <div className="sticky bottom-0 flex flex-col-reverse gap-3 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:justify-end sm:px-6">
                 <button
                   type="button"
-                  onClick={() => setIsEditOpen(false)}
-                  className="min-h-11 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  onClick={closeEditModal}
+                  disabled={savingEdit}
+                  className="min-h-11 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
                 >
                   Cancel
                 </button>
