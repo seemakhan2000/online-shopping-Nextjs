@@ -50,7 +50,6 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Connect to MongoDB before processing API requests
 app.use(async (req, res, next) => {
   try {
     await connectDB();
@@ -68,7 +67,6 @@ app.use(async (req, res, next) => {
 // Static uploaded files
 app.use("/upload", express.static(path.join(__dirname, "upload")));
 
-// Health-check route
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
@@ -95,7 +93,6 @@ app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/payments", paymentRoutes);
 
-// Handle unknown routes
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -103,7 +100,7 @@ app.use((req, res) => {
   });
 });
 
-// Local development server
+
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

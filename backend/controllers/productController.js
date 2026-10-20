@@ -107,7 +107,6 @@ const deleteProduct = async (req, res) => {
 };
 
 
-// Helper to remove duplicates by name+price+size
 function removeDuplicates(products) {
   const seen = new Set();
   return products.filter(product => {

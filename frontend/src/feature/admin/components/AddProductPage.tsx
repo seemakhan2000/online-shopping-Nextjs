@@ -54,7 +54,7 @@ async function readResponse<T>(response: Response): Promise<T> {
   try {
     data = responseText ? JSON.parse(responseText) : {};
   } catch {
-    // Handle non-JSON responses below.
+    // Handle non-JSON responses 
   }
 
   if (!response.ok) {

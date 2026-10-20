@@ -104,12 +104,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-white text-slate-900">
-      {/* Promotional banner */}
-     
-
-
-      {/* Products section - Search input removed */}
-      <section className="mx-auto max-w-[1600px] px-4 py-12 sm:px-6 sm:py-16 lg:px-10">
+      <section className="mx-auto max-w-[1600px] px-4 py-12 mt-[200px] sm:px-6 sm:py-16 lg:px-10">
         <div className="mb-8">
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
             Discover your style

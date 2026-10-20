@@ -8,7 +8,7 @@ import Footer from "@/src/components/layout/Footer";
 import AdminNavbar from "@/src/components/layout/AdminNavbar";
 import AdminLoginModal from "@/src/components/auth/AdminLoginModal";
 
-// ✅ Component ke bahar — sirf ek baar banega
+ 
 const ADMIN_ROUTES = [
   "/addProduct",
   "/viewOrder",
