@@ -1,45 +1,41 @@
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const path = require('path');
+
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const path = require("path");
 
 dotenv.config();
 
-const connectDB = require('./connectdb/connectDB');
+const connectDB = require("./connectdb/connectDB");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration
+// Allowed frontend origins
 const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:5173',
-
-  // Current production frontend
-  'https://online-shopping-nextjs-t4mj.vercel.app',
-
-  // Other frontend deployments
-  'https://online-shopping-nextjs.vercel.app',
-  'https://online-shopping-nextjs-t4mj-6j5fvkd5g-seemakhan2000s-projects.vercel.app',
-
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:5173",
+  "https://online-shopping-nextjs-t4mj.vercel.app",
+  "https://online-shopping-nextjs-t4mj-6j5fvkd5g-seemakhan2000s-projects.vercel.app",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
+// CORS configuration — keep this only once
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests without an Origin header (e.g. server-to-server)
+      // Requests without Origin (e.g. server-to-server)
       if (!origin) {
         return callback(null, true);
       }
 
-      // Allow explicitly configured origins
+      // Explicitly allowed origins
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
-      // Allow this project's Vercel preview deployments only
+      // Allow this project's Vercel preview deployments
       const isVercelPreview =
         /^https:\/\/online-shopping-nextjs-[a-z0-9-]+-seemakhan2000s-projects\.vercel\.app$/.test(
           origin
@@ -49,47 +45,47 @@ app.use(
         return callback(null, true);
       }
 
-      console.warn('CORS blocked origin:', origin);
-      return callback(new Error('Not allowed by CORS'));
+      console.warn("CORS blocked origin:", origin);
+      return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Static uploaded files
-app.use('/upload', express.static(path.join(__dirname, 'upload')));
+app.use("/upload", express.static(path.join(__dirname, "upload")));
 
 // Health-check route
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Online Shopping API is running',
+    message: "Online Shopping API is running",
   });
 });
 
 // Routes
-const productRoutes = require('./routes/productRoutes');
-const orderRoutes = require('./routes/orderRoute');
-const adminRoute = require('./routes/adminRoute');
-const userRoutes = require('./routes/userRoute');
-const cartRoutes = require('./routes/cartRoutes');
-const reviewRoutes = require('./routes/reviewRoutes');
-const categoryRoutes = require('./routes/categoryRoute');
-const paymentRoutes = require('./routes/paymentRoutes');
+const productRoutes = require("./routes/productRoutes");
+const orderRoutes = require("./routes/orderRoute");
+const adminRoute = require("./routes/adminRoute");
+const userRoutes = require("./routes/userRoute");
+const cartRoutes = require("./routes/cartRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
+const categoryRoutes = require("./routes/categoryRoute");
+const paymentRoutes = require("./routes/paymentRoutes");
 
-app.use('/api/admin', adminRoute);
-app.use('/api/orders', orderRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/payments', paymentRoutes);
+app.use("/api/admin", adminRoute);
+app.use("/api/orders", orderRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Handle unknown routes
 app.use((req, res) => {
@@ -107,7 +103,7 @@ if (require.main === module) {
       });
     })
     .catch((error) => {
-      console.error('Database connection failed:', error);
+      console.error("Database connection failed:", error);
       process.exit(1);
     });
 }
