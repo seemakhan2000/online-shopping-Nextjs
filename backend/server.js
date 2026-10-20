@@ -21,21 +21,14 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
-// CORS configuration — keep this only once
+// CORS configuration
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Requests without Origin (e.g. server-to-server)
-      if (!origin) {
+      if (!origin || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
-      // Explicitly allowed origins
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      // Allow this project's Vercel preview deployments
       const isVercelPreview =
         /^https:\/\/online-shopping-nextjs-[a-z0-9-]+-seemakhan2000s-projects\.vercel\.app$/.test(
           origin
@@ -56,6 +49,21 @@ app.use(
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Connect to MongoDB before processing API requests
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error("Database connection error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Database connection failed",
+    });
+  }
+});
 
 // Static uploaded files
 app.use("/upload", express.static(path.join(__dirname, "upload")));
@@ -95,17 +103,11 @@ app.use((req, res) => {
   });
 });
 
+// Local development server
 if (require.main === module) {
-  connectDB()
-    .then(() => {
-      app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-      });
-    })
-    .catch((error) => {
-      console.error("Database connection failed:", error);
-      process.exit(1);
-    });
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
 }
 
 module.exports = app;
