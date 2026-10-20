@@ -39,8 +39,6 @@ const addProduct = async (req, res) => {
       req.file?.secure_url ||
       req.file?.url ||
       "";
-
-   
     console.log("CLOUDINARY DEBUG:", {
       hasFile: Boolean(req.file),
       hasBuffer: Boolean(req.file?.buffer),
@@ -49,8 +47,6 @@ const addProduct = async (req, res) => {
       publicId: req.file?.filename || null,
       imageUrl: Boolean(imageUrl),
     });
-
-    
     if (!name || req.body.price === undefined ||
       req.body.price === "" || !category || !imageUrl) {
       return res.status(400).json({
