@@ -106,19 +106,6 @@ export default function HomePage() {
     <main className="min-h-screen bg-white text-slate-900">
       {/* Promotional banner */}
      
-<section className="mx-auto mt-[260px] max-w-[1600px] px-3 pt-5 sm:px-6 sm:pt-8 lg:px-10">
-  <div className="relative overflow-hidden rounded-xl bg-slate-100 shadow-sm">
-    <Image
-      src="/images/images-banner.jpg"
-      alt="Discover the latest MY SHOPE collection"
-      width={1400}
-      height={520}
-      priority
-      sizes="100vw"
-      className="h-[300px] w-full object-cover sm:h-[500px] lg:h-[700px]"
-    />
-  </div>
-</section>
 
 
       {/* Products section - Search input removed */}
