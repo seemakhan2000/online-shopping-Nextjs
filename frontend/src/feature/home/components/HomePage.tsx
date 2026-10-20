@@ -46,7 +46,6 @@ export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Search query Navbar se URL ke zariye aayegi.
   const searchFromUrl = searchParams.get("search")?.trim() || "";
 
   const [products, setProducts] = useState<Product[]>([]);

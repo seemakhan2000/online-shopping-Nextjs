@@ -2,7 +2,6 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const path = require("path");
 
 dotenv.config();
 
@@ -11,30 +10,28 @@ const connectDB = require("./connectdb/connectDB");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Allowed frontend origins
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:5173",
   "https://online-shopping-nextjs-t4mj.vercel.app",
-  "https://online-shopping-nextjs-t4mj-6j5fvkd5g-seemakhan2000s-projects.vercel.app",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
-// CORS configuration
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      const isVercelPreview =
+      const isAllowedVercelPreview =
+        origin &&
         /^https:\/\/online-shopping-nextjs-[a-z0-9-]+-seemakhan2000s-projects\.vercel\.app$/.test(
           origin
         );
 
-      if (isVercelPreview) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        isAllowedVercelPreview
+      ) {
         return callback(null, true);
       }
 
@@ -42,7 +39,14 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS",
+    ],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
@@ -50,27 +54,25 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// Connect to MongoDB before processing API requests.
 app.use(async (req, res, next) => {
   try {
     await connectDB();
     next();
   } catch (error) {
-    console.error("Database connection error:", error.message);
+    console.error("DATABASE CONNECTION ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Database connection failed",
+      message: "Database connection failed.",
     });
   }
 });
 
-// Static uploaded files
-app.use("/upload", express.static(path.join(__dirname, "upload")));
-
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Online Shopping API is running",
+    message: "Online Shopping API is running.",
   });
 });
 
@@ -93,13 +95,32 @@ app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/payments", paymentRoutes);
 
+// Global error handler.
+app.use((err, req, res, next) => {
+  console.error("EXPRESS ERROR:", err);
+  console.error("EXPRESS ERROR MESSAGE:", err?.message);
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  const status =
+    err.status ||
+    (err.message === "Not allowed by CORS" ? 403 : 500);
+
+  return res.status(status).json({
+    success: false,
+    message: err.message || "Internal server error.",
+  });
+});
+
+// 404 handler.
 app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: `Route not found: ${req.method} ${req.originalUrl}`,
   });
 });
-
 
 if (require.main === module) {
   app.listen(PORT, () => {
